@@ -100,7 +100,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: luci-app-GEPH5-Package-${{ matrix.arch }}
-          # 匹配所有以 luci-app-GEPH5_ 开头的包文件，无论是 .ipk 还是 .apk
           path: openwrt-sdk/bin/packages/**/luci-app-GEPH5_*
           if-no-files-found: error
 
@@ -110,8 +109,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: "Release ${{ github.ref_name }}"
-          # 2. 核心修复：使用你找到的路径，配合通配符
           files: |
-            openwrt-sdk/bin/packages/**/*.ipk
+            openwrt-sdk/bin/packages/**/luci-app-GEPH5*.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
