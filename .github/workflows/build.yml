@@ -74,8 +74,7 @@ jobs:
 
       - name: 🔧 Patch Makefile for Cross-Compilation
         run: |
-          # 核心魔法：使用 sed 动态替换 Makefile 里的硬编码 target
-          # 让它自动适应当前 Matrix 正在编译的架构
+          # 这样会把 Makefile 里所有的 target 字符串都替换掉
           sed -i "s/x86_64-unknown-linux-musl/${{ matrix.rust_target }}/g" openwrt-sdk/package/luci-app-GEPH5/Makefile
 
       - name: 🚀 Compile luci-app-GEPH5 Package
