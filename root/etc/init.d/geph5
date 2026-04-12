@@ -1,0 +1,124 @@
+#!/bin/sh /etc/rc.common
+
+USE_PROCD=1
+START=99
+STOP=10
+
+BASE_CONTROL_PORT=12222
+BASE_PAC_PORT=13333
+INSTANCE_COUNT=0
+
+start_instance() {
+	local cfg="$1"
+	local enabled secret cdn77_mode cdn77_ip exit_mode exit_country http_proxy_ip http_proxy_port socks5_ip socks5_port
+	
+	config_get_bool enabled "$cfg" enabled 0
+	[ "$enabled" -eq 1 ] || return 0
+
+	local current_control_port=$((BASE_CONTROL_PORT + INSTANCE_COUNT))
+	local current_pac_port=$((BASE_PAC_PORT + INSTANCE_COUNT))
+	INSTANCE_COUNT=$((INSTANCE_COUNT + 1))
+
+	config_get secret "$cfg" secret "ABCD"
+	config_get cdn77_mode "$cfg" cdn77_mode "auto"
+	config_get cdn77_ip "$cfg" cdn77_ip ""
+	config_get exit_mode "$cfg" exit_mode "auto"
+	config_get exit_country "$cfg" exit_country "TW"
+	# 这里修改了后备默认值为 127.0.0.1
+	config_get http_proxy_ip "$cfg" http_proxy_ip "127.0.0.1"
+	config_get http_proxy_port "$cfg" http_proxy_port "9910"
+	config_get socks5_ip "$cfg" socks5_ip "127.0.0.1"
+	config_get socks5_port "$cfg" socks5_port "9909"
+
+	mkdir -p /var/etc
+	local conf_file="/var/etc/geph5_${cfg}.yaml"
+
+	cat <<EOF > "$conf_file"
+bridge_mode: ForceBridges
+broker:
+  priority_race:
+    '0':
+      fronted:
+        front: https://www.cdn77.com/
+        host: 1826209743.rsc.cdn77.org
+EOF
+
+	# 智能拼接 CDN77 IP 的 443 端口
+	if [ "$cdn77_mode" = "manual" ] && [ -n "$cdn77_ip" ]; then
+		case "$cdn77_ip" in
+			*:*) FINAL_CDN_ADDR="$cdn77_ip" ;;
+			*) FINAL_CDN_ADDR="${cdn77_ip}:443" ;;
+		esac
+		echo "        override_dns:" >> "$conf_file"
+		echo "        - ${FINAL_CDN_ADDR}" >> "$conf_file"
+	else
+		echo "        override_dns: null" >> "$conf_file"
+	fi
+
+	cat <<EOF >> "$conf_file"
+    '500':
+      fronted:
+        front: https://www.vuejs.org/
+        host: svitania-naidallszei-3.netlify.app
+        override_dns:
+        - 93.184.216.34:443
+broker_keys:
+  master: 88c1d2d4197bed815b01a22cadfc6c35aa246dddb553682037a118aebfaa3954
+  mizaru_free: 0558216cbab7a9c46f298f4c26e171add9af87d0694988b8a8fe52ee932aa754
+  mizaru_plus: cf6f58868c6d9459b3a63bc2bd86165631b3e916bad7f62b578cd9614e0bcb3b
+  mizaru_bw: 3082010a0282010100d0ae53a794ea37bf2e100cb3a872177ec6c11e8375fdcbf92960ce0293465674eb1426a1841b7622a58979a5ff3f8aa2301a621545e9b90bb39d1a6bfda19d6ca1aae74a3192ddfd2b9558eb652c3c2c22f42bdde272852fb67d93cae5846213512c474bf799844aee019bf718f6fa64223be06364459fc8dec66796b141d450d730c4fffe1cac7df8f05591560afa44bcf274f6c0e2303b39c21ab09d19b459ee594512b8341f3d407c026e2509f42c6d89f82f6a3a36fd5c05ad423cd99ad39089403eb9122ea60ef6648afff65438e8e26ce41fa55b9b18741965c77a627bae947bd38fc345e9adab42d6c458f6e194e4232cfd3f04924d5a5e932fe769610203010001
+cache: /etc/geph5/geph5_${cfg}.db
+control_listen: 127.0.0.1:${current_control_port}
+pac_listen: 127.0.0.1:${current_pac_port}
+credentials:
+  secret: '${secret}'
+dry_run: false
+EOF
+
+	if [ "$exit_mode" = "auto" ]; then
+		echo "exit_constraint: auto" >> "$conf_file"
+	else
+		echo "exit_constraint:" >> "$conf_file"
+		echo "  country: ${exit_country}" >> "$conf_file"
+	fi
+
+	cat <<EOF >> "$conf_file"
+http_proxy_listen: ${http_proxy_ip}:${http_proxy_port}
+passthrough_china: false
+sess_metadata:
+  filter:
+    ads: false
+    nsfw: false
+socks5_listen: ${socks5_ip}:${socks5_port}
+spoof_dns: false
+task_limit: null
+vpn: false
+vpn_fd: null
+EOF
+
+	procd_open_instance "$cfg"
+	procd_set_param command /usr/bin/geph5-client
+	procd_append_param command --config "$conf_file"
+
+	procd_set_param file "$conf_file"	
+
+	# 绑定配置文件校验
+	procd_set_param file "$conf_file"
+	procd_set_param file /etc/config/geph5
+
+	procd_set_param respawn
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_close_instance
+}
+
+start_service() {
+	mkdir -p /etc/geph5
+	config_load geph5
+	INSTANCE_COUNT=0
+	config_foreach start_instance profile
+}
+
+service_triggers() {
+	procd_add_reload_trigger "geph5"
+}

@@ -1,0 +1,84 @@
+name: Build OpenWrt luci-app-GEPH5 Package
+
+# 触发条件：当你推送代码到 main 分支，或者在网页上手动点击运行
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*' # 当你打 v0.99.1 这种 tag 时也会触发
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build for ${{ matrix.arch }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false # 如果某个架构编译失败，不要取消其他架构的编译
+      matrix:
+        # 定义需要编译的架构、对应的 SDK 下载链接以及 Rust Target
+        include:
+          - arch: x86_64
+            sdk_url: https://downloads.openwrt.org/releases/24.10.4/targets/x86/64/openwrt-sdk-24.10.4-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+            rust_target: x86_64-unknown-linux-musl
+
+          - arch: aarch64
+            sdk_url: https://downloads.openwrt.org/releases/24.10.4/targets/armsr/armv8/openwrt-sdk-24.10.4-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+            rust_target: aarch64-unknown-linux-musl
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Setup Debian/Ubuntu Build Environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          # 加上了 zstd
+          sudo apt-get install -y build-essential clang flex bison g++ gawk \
+            gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
+            python3-distutils rsync unzip zlib1g-dev file wget zstd
+
+      - name: 🦀 Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: 📦 Download and Prepare OpenWrt SDK
+        run: |
+          wget -O sdk.tar.zst ${{ matrix.sdk_url }}
+          mkdir openwrt-sdk
+          # 去掉 v 标志，保持安静
+          tar -xf sdk.tar.zst -C openwrt-sdk --strip-components=1
+          echo "✅ SDK 解压已完成，开始准备代码..."
+
+          mkdir -p openwrt-sdk/package/luci-app-GEPH5
+          rsync -a --exclude='.git' --exclude='.github' ./ openwrt-sdk/package/luci-app-GEPH5/
+
+      - name: 🔧 Patch Makefile for Cross-Compilation
+        run: |
+          # 核心魔法：使用 sed 动态替换 Makefile 里的硬编码 target
+          # 让它自动适应当前 Matrix 正在编译的架构
+          sed -i "s/x86_64-unknown-linux-musl/${{ matrix.rust_target }}/g" openwrt-sdk/package/luci-app-GEPH5/Makefile
+
+      - name: 🚀 Compile luci-app-GEPH5 Package
+        working-directory: openwrt-sdk
+        run: |
+          # 更新 feeds 以满足 luci-base 等依赖
+          ./scripts/feeds update packages luci
+          ./scripts/feeds install luci-base
+          
+          # 生成默认 .config
+          make defconfig
+          
+          # 启动编译 (V=s 输出详细日志方便在网页端排错)
+          make package/luci-app-GEPH5/compile V=s
+
+      - name: 📤 Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-app-GEPH5-Package-${{ matrix.arch }}
+          # 匹配所有以 luci-app-GEPH5_ 开头的包文件，无论是 .ipk 还是 .apk
+          path: openwrt-sdk/bin/packages/**/luci-app-GEPH5_*
+          if-no-files-found: error
