@@ -13,6 +13,8 @@ jobs:
   build:
     name: Build for ${{ matrix.arch }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     strategy:
       fail-fast: false # 如果某个架构编译失败，不要取消其他架构的编译
       matrix:
@@ -22,7 +24,7 @@ jobs:
             sdk_url: https://downloads.openwrt.org/releases/24.10.4/targets/x86/64/openwrt-sdk-24.10.4-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
             rust_target: x86_64-unknown-linux-musl
 
-          - arch: aarch64
+          - arch: aarch64_generic
             sdk_url: https://downloads.openwrt.org/releases/24.10.4/targets/armsr/armv8/openwrt-sdk-24.10.4-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
             rust_target: aarch64-unknown-linux-musl
 
@@ -104,20 +106,12 @@ jobs:
 
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v2
-        # 只有在推送 Tag 时才执行 Release 步骤，普通 Push 只编译不发布
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          # 直接使用当前的 Tag 名作为 Release 标题
           tag_name: ${{ github.ref_name }}
           name: "Release ${{ github.ref_name }}"
-          body: |
-            ## 自动编译版本更新
-            - 架构: ${{ matrix.arch }}
-            - 源码版本: ${{ env.PKG_VERSION }}
-            - 编译时间: ${{ github.event.head_commit.timestamp }}
-          draft: false
-          prerelease: false
+          # 2. 核心修复：使用你找到的路径，配合通配符
           files: |
-            openwrt-sdk/bin/packages/${{ matrix.arch }}_generic/base/luci-app-GEPH5*.ipk
+            openwrt-sdk/bin/packages/**/*.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
