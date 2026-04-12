@@ -16,12 +16,11 @@
 
 ## 📦 安装与使用 (普通用户)
 
-1.  前往本项目的 [Releases 页面](https://www.google.com/search?q=../../releases) 下载对应你路由器架构的 `.ipk` 安装包（提供 x86\_64, aarch64, mipsel 等多架构支持）。
+1.  前往本项目的 [Releases 页面](https://github.com/program-thinked/luci-app-GEPH5/releases) 下载对应你路由器架构的 `.ipk` 安装包（提供 x86\_64, aarch64, mipsel 等多架构支持）。
 2.  将 `.ipk` 文件通过 SCP 上传至路由器的 `/root` 目录。
 3.  SSH 登录路由器并执行安装：
     ```bash
-    opkg update
-    opkg install /root/GEPH5_*.ipk
+    opkg install /root/luci-app-GEPH5_*.ipk
     ```
 4.  登录路由器的 OpenWrt Web 后台。
 5.  导航至 **服务 (Services) -\> GEPH5**。
@@ -50,10 +49,6 @@ rustup target add x86_64-unknown-linux-musl
 ```bash
 # 将本仓库克隆到 SDK 的 package 目录下
 git clone https://github.com/你的用户名/luci-app-geph5.git package/luci-app-GEPH5
-
-# 更新 feeds 以获取 luci-base 依赖
-./scripts/feeds update packages luci
-./scripts/feeds install luci-base
 
 # 启动编译 (系统会自动下载 crates.io 源码并现场构建)
 make package/luci-app-GEPH5/compile V=s
