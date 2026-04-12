@@ -47,14 +47,30 @@ jobs:
 
       - name: 📦 Download and Prepare OpenWrt SDK
         run: |
-          wget -O sdk.tar.zst ${{ matrix.sdk_url }}
-          mkdir openwrt-sdk
-          # 去掉 v 标志，保持安静
-          tar -xf sdk.tar.zst -C openwrt-sdk --strip-components=1
-          echo "✅ SDK 解压已完成，开始准备代码..."
+          # 使用 curl 进行静默下载
+          # -f: 遇到服务器错误时不输出 HTML 错误页
+          # -s: 静默模式，不显示进度条（减少日志量）
+          # -S: 如果出错，依然显示错误信息
+          # -L: 自动跟随重定向（GitHub 和 OpenWrt 镜像站经常有重定向）
+          curl -fsSL -o sdk.tar.zst ${{ matrix.sdk_url }}
 
+          echo "✅ SDK 下载完成，开始解压..."
+          mkdir openwrt-sdk
+          tar -xf sdk.tar.zst -C openwrt-sdk --strip-components=1
+
+          echo "✅ SDK 解压完成，开始同步代码..."
           mkdir -p openwrt-sdk/package/luci-app-GEPH5
-          rsync -a --exclude='.git' --exclude='.github' ./ openwrt-sdk/package/luci-app-GEPH5/
+
+          # 极其重要：添加 --exclude 排除掉 sdk 文件夹本身
+          # 否则 rsync 会尝试把几 GB 的 sdk 文件夹再次拷贝进它自己内部，导致死循环
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='openwrt-sdk' \
+            --exclude='sdk.tar.zst' \
+            ./ openwrt-sdk/package/luci-app-GEPH5/
+
+          echo "✅ 代码准备就绪。"
 
       - name: 🔧 Patch Makefile for Cross-Compilation
         run: |
