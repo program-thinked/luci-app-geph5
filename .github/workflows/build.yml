@@ -9,6 +9,9 @@ on:
       - 'v*' # 当你打 v0.99.1 这种 tag 时也会触发
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     name: Build for ${{ matrix.arch }}
