@@ -81,14 +81,18 @@ jobs:
       - name: 🚀 Compile luci-app-GEPH5 Package
         working-directory: openwrt-sdk
         run: |
-          # 更新 feeds 以满足 luci-base 等依赖
-          ./scripts/feeds update packages luci
-          ./scripts/feeds install luci-base
-          
-          # 生成默认 .config
+          # 1. 更新所有 feed
+          ./scripts/feeds update -a
+
+          # 2. 安装所有 feed 里的包到 package/feeds 目录下
+          # 这样编译系统就能自动找到 liblua、lucihttp 等所有依赖
+          ./scripts/feeds install -a
+
+          # 3. 生成默认配置（这一步会根据你的 Makefile 自动选中依赖）
           make defconfig
-          
-          # 启动编译 (V=s 输出详细日志方便在网页端排错)
+
+          # 4. 启动编译
+          # 如果还是报错，可以尝试先单独编译依赖：make package/feeds/luci/lucihttp/compile V=s
           make package/luci-app-GEPH5/compile V=s
 
       - name: 📤 Upload Artifacts
