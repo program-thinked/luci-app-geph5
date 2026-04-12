@@ -36,13 +36,15 @@ define Build/Prepare
 endef
 
 # ==========================================
-# 编译阶段：直接调用系统 cargo
+# 编译阶段：修复 ARM 链接器错误
 # ==========================================
 define Build/Compile
 	( \
 		export CARGO_HOME=$(HOME)/.cargo; \
 		export CC_$(subst -,_,$(RUST_TARGET))="$(TARGET_CC)"; \
 		export AR_$(subst -,_,$(RUST_TARGET))="$(TARGET_AR)"; \
+		$(CARGO_PKG_VARS) \
+		RUSTFLAGS="-C linker=$(TARGET_CC)" \
 		cargo build \
 			--target $(RUST_TARGET) \
 			--release \
