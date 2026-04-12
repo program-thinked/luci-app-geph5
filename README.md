@@ -48,7 +48,7 @@ rustup target add x86_64-unknown-linux-musl
 
 ```bash
 # 将本仓库克隆到 SDK 的 package 目录下
-git clone https://github.com/你的用户名/luci-app-geph5.git package/luci-app-GEPH5
+git clone https://github.com/program-thinked/luci-app-geph5.git package/luci-app-GEPH5
 
 # 启动编译 (系统会自动下载 crates.io 源码并现场构建)
 make package/luci-app-GEPH5/compile V=s
