@@ -36,18 +36,17 @@ define Build/Prepare
 endef
 
 # ==========================================
-# 编译阶段：导出环境变量并调用 Cargo
+# 编译阶段：直接调用系统 cargo
 # ==========================================
 define Build/Compile
 	( \
-		export CARGO_HOME=$(CARGO_HOME); \
+		export CARGO_HOME=$(HOME)/.cargo; \
 		export CC_$(subst -,_,$(RUST_TARGET))="$(TARGET_CC)"; \
 		export AR_$(subst -,_,$(RUST_TARGET))="$(TARGET_AR)"; \
-		$(CARGO_PKG_VARS) \
-		$(CARGO_BIN) build \
+		cargo build \
 			--target $(RUST_TARGET) \
 			--release \
-			--manifest-path $(PKG_BUILD_DIR)/Cargo.toml \
+			--manifest-path $(PKG_BUILD_DIR)/Cargo.toml; \
 	)
 endef
 
