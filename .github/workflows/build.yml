@@ -101,3 +101,23 @@ jobs:
           # 匹配所有以 luci-app-GEPH5_ 开头的包文件，无论是 .ipk 还是 .apk
           path: openwrt-sdk/bin/packages/**/luci-app-GEPH5_*
           if-no-files-found: error
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        # 只有在推送 Tag 时才执行 Release 步骤，普通 Push 只编译不发布
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          # 直接使用当前的 Tag 名作为 Release 标题
+          tag_name: ${{ github.ref_name }}
+          name: "Release ${{ github.ref_name }}"
+          body: |
+            ## 自动编译版本更新
+            - 架构: ${{ matrix.arch }}
+            - 源码版本: ${{ env.PKG_VERSION }}
+            - 编译时间: ${{ github.event.head_commit.timestamp }}
+          draft: false
+          prerelease: false
+          files: |
+            openwrt-sdk/bin/packages/${{ matrix.arch }}_generic/base/luci-app-GEPH5*.ipk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
