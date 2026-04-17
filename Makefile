@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 # 1. 基础信息
 PKG_NAME:=luci-app-GEPH5
-PKG_VERSION:=0.2.97
+PKG_VERSION:=0.2.99
 PKG_RELEASE:=1
 
 # 2. 编译目标定义 (核心锚点：会被 build.yml 中的 sed 替换成 aarch64 等)
