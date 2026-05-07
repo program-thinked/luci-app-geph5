@@ -22,12 +22,16 @@ o:depends("cdn77_mode", "manual")
 
 o = s:option(ListValue, "exit_mode", translate("出口选择模式"))
 o:value("auto", translate("自动选择 (Auto)"))
-o:value("country", translate("指定国家 (Country)"))
-o.default = "country"
+o:value("country_city", translate("指定国家/城市 (Country/City)"))
+o.default = "country_city"
 
-o = s:option(Value, "exit_country", translate("国家代码"), translate("例如填写 TW, JP, US 等。"))
-o:depends("exit_mode", "country")
-o.default = "TW"
+o = s:option(Value, "exit_country", translate("国家代码"), translate("例如填写 JP, US 等。"))
+o:depends("exit_mode", "country_city")
+o.default = "JP"
+
+o = s:option(Value, "exit_city", translate("城市名称"), translate("例如填写 Tokyo 等,可使用手机端的GEPH查看具体节点。区分大小写。"))
+o:depends("exit_mode", "country_city")
+o.default = "Tokyo"
 
 o = s:option(Value, "http_proxy_ip", translate("HTTP 代理监听 IP"))
 o.datatype = "ipaddr"

@@ -10,8 +10,7 @@ INSTANCE_COUNT=0
 
 start_instance() {
 	local cfg="$1"
-	local enabled secret cdn77_mode cdn77_ip exit_mode exit_country http_proxy_ip http_proxy_port socks5_ip socks5_port
-	
+	local enabled secret cdn77_mode cdn77_ip exit_mode exit_country exit_city http_proxy_ip http_proxy_port socks5_ip socks5_port	
 	config_get_bool enabled "$cfg" enabled 0
 	[ "$enabled" -eq 1 ] || return 0
 
@@ -23,7 +22,8 @@ start_instance() {
 	config_get cdn77_mode "$cfg" cdn77_mode "auto"
 	config_get cdn77_ip "$cfg" cdn77_ip ""
 	config_get exit_mode "$cfg" exit_mode "auto"
-	config_get exit_country "$cfg" exit_country "TW"
+	config_get exit_country "$cfg" exit_country "JP"
+	config_get exit_city "$cfg" exit_city "Tokyo"
 	# 这里修改了后备默认值为 127.0.0.1
 	config_get http_proxy_ip "$cfg" http_proxy_ip "127.0.0.1"
 	config_get http_proxy_port "$cfg" http_proxy_port "9910"
@@ -77,9 +77,11 @@ EOF
 
 	if [ "$exit_mode" = "auto" ]; then
 		echo "exit_constraint: auto" >> "$conf_file"
-	else
+	elif [ "$exit_mode" = "country_city" ]; then
 		echo "exit_constraint:" >> "$conf_file"
-		echo "  country: ${exit_country}" >> "$conf_file"
+		echo "  country_city:" >> "$conf_file"
+		echo "    - \"${exit_country}\"" >> "$conf_file"
+		echo "    - \"${exit_city}\"" >> "$conf_file"
 	fi
 
 	cat <<EOF >> "$conf_file"
