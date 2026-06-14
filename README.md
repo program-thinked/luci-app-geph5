@@ -1,29 +1,29 @@
-# Geph5 Client for OpenWrt (含 LuCI 界面)
+# geph5 Client for OpenWrt (含 LuCI 界面)
 
 [](https://www.google.com/search?q=https://opensource.org/licenses/MIT)
 
-本项目为 OpenWrt 路由器提供 [Geph5 (迷雾通 5)](https://www.google.com/search?q=https://github.com/geph-official/geph5) 客户端的本地化运行支持，并包含一个用户友好的 LuCI Web 图形配置界面。
+本项目为 OpenWrt 路由器提供 [geph5 (迷雾通 5)](https://www.google.com/search?q=https://github.com/geph-official/geph5) 客户端的本地化运行支持，并包含一个用户友好的 LuCI Web 图形配置界面。
 
 **本项目具备极高的安全性与透明度：** 不包含任何预编译的二进制文件。编译时将通过 OpenWrt 官方构建系统自动从 `crates.io` 拉取最新的官方源码并进行现场交叉编译。
 
 ## ✨ 核心特性
 
   * **原生 LuCI 集成**：提供完整的图形化配置界面，无需手动修改底层 YAML 文件。
-  * **多实例并发 (Multi-Instance)**：原生支持配置和运行多个 Geph5 实例（例如同时连接 TW 和 JP 节点），基于 OpenWrt `procd` 守护进程，各个实例互不干扰。
+  * **多实例并发 (Multi-Instance)**：原生支持配置和运行多个 geph5 实例（例如同时连接 TW 和 JP 节点），基于 OpenWrt `procd` 守护进程，各个实例互不干扰。
   * **CDN77 域前置抗封锁**：独家支持手动指定 CDN77 未被阻断的 IP 地址（UI 层面智能拼接 443 端口），在严苛网络环境下保证连通性。
   * **安全默认设置**：代理端口默认绑定于 `127.0.0.1`，仅限路由器内部网络调用（如搭配 PassWall / OpenClash 作为前置节点使用），防止局域网越权访问。
-  * **动态配置生成与守护**：服务启动时实时将 UCI 配置转换为 Geph5 所需的 YAML 格式（挂载于内存盘 `/var/etc/`），并支持修改配置后热重载（Hot-reload）及崩溃自动重启。
+  * **动态配置生成与守护**：服务启动时实时将 UCI 配置转换为 geph5 所需的 YAML 格式（挂载于内存盘 `/var/etc/`），并支持修改配置后热重载（Hot-reload）及崩溃自动重启。
 
 ## 📦 安装与使用 (普通用户)
 
-1.  前往本项目的 [Releases 页面](https://github.com/program-thinked/luci-app-GEPH5/releases) 下载对应你路由器架构的 `.ipk` 安装包（提供 x86\_64, aarch64, mipsel 等多架构支持）。
+1.  前往本项目的 [Releases 页面](https://github.com/program-thinked/luci-app-geph5/releases) 下载对应你路由器架构的 `.ipk` 安装包（提供 x86\_64, aarch64, mipsel 等多架构支持）。
 2.  将 `.ipk` 文件通过 SCP 上传至路由器的 `/root` 目录。
 3.  SSH 登录路由器并执行安装：
     ```bash
-    opkg install /root/luci-app-GEPH5_*.ipk
+    opkg install /root/luci-app-geph5_*.ipk
     ```
 4.  登录路由器的 OpenWrt Web 后台。
-5.  导航至 **服务 (Services) -\> GEPH5**。
+5.  导航至 **服务 (Services) -\> geph5**。
 6.  点击“添加”创建实例，填入你的 Secret 凭证，按需调整 CDN77 IP 和代理端口，勾选“启用”，点击 **保存并应用** 即可。
 
 ## 🛠️ 编译指南 (开发者)
@@ -48,10 +48,10 @@ rustup target add x86_64-unknown-linux-musl
 
 ```bash
 # 将本仓库克隆到 SDK 的 package 目录下
-git clone https://github.com/program-thinked/luci-app-geph5.git package/luci-app-GEPH5
+git clone https://github.com/program-thinked/luci-app-geph5.git package/luci-app-geph5
 
 # 启动编译 (系统会自动下载 crates.io 源码并现场构建)
-make package/luci-app-GEPH5/compile V=s
+make package/luci-app-geph5/compile V=s
 ```
 
 编译成功后，安装包将生成在 `bin/packages/<架构>/base/` 目录下。

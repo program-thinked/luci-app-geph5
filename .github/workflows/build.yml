@@ -1,4 +1,4 @@
-name: Build OpenWrt luci-app-GEPH5 Package
+name: Build OpenWrt luci-app-geph5 Package
 
 # 触发条件：当你推送代码到 main 分支，或者在网页上手动点击运行
 on:
@@ -14,21 +14,43 @@ env:
 
 jobs:
   build:
-    name: Build for ${{ matrix.arch }}
+    # 【改造点 1：动态 Job 名称，方便在 Actions 面板区分】
+    name: Build ${{ matrix.arch }} (${{ matrix.os_ver }})
     runs-on: ubuntu-22.04
     permissions:
       contents: write
     strategy:
-      fail-fast: false # 如果某个架构编译失败，不要取消其他架构的编译
+      fail-fast: false # 极其重要：如果 25.x 的 apk 编译报错，不会连累 24.x 的 ipk 被强制取消
       matrix:
-        # 定义需要编译的架构、对应的 SDK 下载链接以及 Rust Target
         include:
+          # ==========================================
+          # 路线 A：传统 IPK 环境 (OpenWrt 24.10.4)
+          # ==========================================
           - arch: x86_64
+            os_ver: 24.10.4
+            pkg_ext: ipk
             sdk_url: https://downloads.openwrt.org/releases/24.10.4/targets/x86/64/openwrt-sdk-24.10.4-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
             rust_target: x86_64-unknown-linux-musl
 
           - arch: aarch64_generic
+            os_ver: 24.10.4
+            pkg_ext: ipk
             sdk_url: https://downloads.openwrt.org/releases/24.10.4/targets/armsr/armv8/openwrt-sdk-24.10.4-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+            rust_target: aarch64-unknown-linux-musl
+
+          # ==========================================
+          # 路线 B：全新 APK 环境 (OpenWrt 25.12.4)
+          # ==========================================
+          - arch: x86_64
+            os_ver: 25.12.4
+            pkg_ext: apk
+            sdk_url: https://downloads.openwrt.org/releases/25.12.4/targets/x86/64/openwrt-sdk-25.12.4-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+            rust_target: x86_64-unknown-linux-musl
+
+          - arch: aarch64_generic
+            os_ver: 25.12.4
+            pkg_ext: apk
+            sdk_url: https://downloads.openwrt.org/releases/25.12.4/targets/armsr/armv8/openwrt-sdk-25.12.4-armsr-armv8_gcc-14.3.0_musl.Linux-x86_64.tar.zst
             rust_target: aarch64-unknown-linux-musl
 
     steps:
@@ -40,7 +62,6 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           sudo apt-get update
-          # 加上了 zstd
           sudo apt-get install -y build-essential clang flex bison g++ gawk \
             gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
             python3-distutils rsync unzip zlib1g-dev file wget zstd
@@ -52,11 +73,6 @@ jobs:
 
       - name: 📦 Download and Prepare OpenWrt SDK
         run: |
-          # 使用 curl 进行静默下载
-          # -f: 遇到服务器错误时不输出 HTML 错误页
-          # -s: 静默模式，不显示进度条（减少日志量）
-          # -S: 如果出错，依然显示错误信息
-          # -L: 自动跟随重定向（GitHub 和 OpenWrt 镜像站经常有重定向）
           curl -fsSL -o sdk.tar.zst ${{ matrix.sdk_url }}
 
           echo "✅ SDK 下载完成，开始解压..."
@@ -64,46 +80,35 @@ jobs:
           tar -xf sdk.tar.zst -C openwrt-sdk --strip-components=1
 
           echo "✅ SDK 解压完成，开始同步代码..."
-          mkdir -p openwrt-sdk/package/luci-app-GEPH5
+          mkdir -p openwrt-sdk/package/luci-app-geph5
 
-          # 极其重要：添加 --exclude 排除掉 sdk 文件夹本身
-          # 否则 rsync 会尝试把几 GB 的 sdk 文件夹再次拷贝进它自己内部，导致死循环
           rsync -a \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='openwrt-sdk' \
             --exclude='sdk.tar.zst' \
-            ./ openwrt-sdk/package/luci-app-GEPH5/
+            ./ openwrt-sdk/package/luci-app-geph5/
 
           echo "✅ 代码准备就绪。"
 
       - name: 🔧 Patch Makefile for Cross-Compilation
         run: |
-          # 这样会把 Makefile 里所有的 target 字符串都替换掉
-          sed -i "s/x86_64-unknown-linux-musl/${{ matrix.rust_target }}/g" openwrt-sdk/package/luci-app-GEPH5/Makefile
+          sed -i "s/x86_64-unknown-linux-musl/${{ matrix.rust_target }}/g" openwrt-sdk/package/luci-app-geph5/Makefile
 
-      - name: 🚀 Compile luci-app-GEPH5 Package
+      - name: 🚀 Compile luci-app-geph5 Package
         working-directory: openwrt-sdk
         run: |
-          # 1. 更新所有 feed
           ./scripts/feeds update -a
-
-          # 2. 安装所有 feed 里的包到 package/feeds 目录下
-          # 这样编译系统就能自动找到 liblua、lucihttp 等所有依赖
           ./scripts/feeds install -a
-
-          # 3. 生成默认配置（这一步会根据你的 Makefile 自动选中依赖）
           make defconfig
-
-          # 4. 启动编译
-          # 如果还是报错，可以尝试先单独编译依赖：make package/feeds/luci/lucihttp/compile V=s
-          make package/luci-app-GEPH5/compile V=s
+          make package/luci-app-geph5/compile V=s
 
       - name: 📤 Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: luci-app-GEPH5-Package-${{ matrix.arch }}
-          path: openwrt-sdk/bin/packages/**/luci-app-GEPH5_*
+          # 【改造点 2：动态命名 Artifact，防止不同系统版本的产物互相覆盖】
+          name: luci-app-geph5-${{ matrix.os_ver }}-${{ matrix.arch }}-${{ matrix.pkg_ext }}
+          path: openwrt-sdk/bin/packages/**/luci-app-geph5*.${{ matrix.pkg_ext }}
           if-no-files-found: error
 
       - name: 🚀 Create GitHub Release
@@ -112,7 +117,9 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: "Release ${{ github.ref_name }}"
+          # 【改造点 3：Release 环节同时抓取 .ipk 和 .apk 文件】
           files: |
-            openwrt-sdk/bin/packages/**/luci-app-GEPH5*.ipk
+            openwrt-sdk/bin/packages/**/luci-app-geph5*.ipk
+            openwrt-sdk/bin/packages/**/luci-app-geph5*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

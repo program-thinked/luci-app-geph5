@@ -1,4 +1,4 @@
-m = Map("geph5", translate("GEPH5"), translate("支持多实例运行。后台会自动分配 Control/PAC 端口并生成独立的 YAML 配置文件。"))
+m = Map("geph5", translate("geph5"), translate("支持多实例运行。后台会自动分配 Control/PAC 端口并生成独立的 YAML 配置文件。"))
 
 s = m:section(TypedSection, "profile", translate("代理节点实例"))
 s.addremove = true
