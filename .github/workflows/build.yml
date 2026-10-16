@@ -1,12 +1,11 @@
 name: Build OpenWrt luci-app-geph5 Package
 
-# 触发条件：当你推送代码到 main 分支，或者在网页上手动点击运行
 on:
   push:
     branches:
       - main
     tags:
-      - 'v*' # 当你打 v0.99.1 这种 tag 时也会触发
+      - 'v*'
   workflow_dispatch:
 
 env:
@@ -14,13 +13,12 @@ env:
 
 jobs:
   build:
-    # 【改造点 1：动态 Job 名称，方便在 Actions 面板区分】
     name: Build ${{ matrix.arch }} (${{ matrix.os_ver }})
     runs-on: ubuntu-22.04
     permissions:
       contents: write
     strategy:
-      fail-fast: false # 极其重要：如果 25.x 的 apk 编译报错，不会连累 24.x 的 ipk 被强制取消
+      fail-fast: false
       matrix:
         include:
           # ==========================================
@@ -39,18 +37,18 @@ jobs:
             rust_target: aarch64-unknown-linux-musl
 
           # ==========================================
-          # 路线 B：全新 APK 环境 (OpenWrt 25.12.4)
+          # 路线 B：全新 APK 环境 (OpenWrt 25.12.5)
           # ==========================================
           - arch: x86_64
-            os_ver: 25.12.4
+            os_ver: 25.12.5
             pkg_ext: apk
-            sdk_url: https://downloads.openwrt.org/releases/25.12.4/targets/x86/64/openwrt-sdk-25.12.4-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+            sdk_url: https://downloads.openwrt.org/releases/25.12.5/targets/x86/64/openwrt-sdk-25.12.5-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst
             rust_target: x86_64-unknown-linux-musl
 
           - arch: aarch64_generic
-            os_ver: 25.12.4
+            os_ver: 25.12.5
             pkg_ext: apk
-            sdk_url: https://downloads.openwrt.org/releases/25.12.4/targets/armsr/armv8/openwrt-sdk-25.12.4-armsr-armv8_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+            sdk_url: https://downloads.openwrt.org/releases/25.12.5/targets/armsr/armv8/openwrt-sdk-25.12.5-armsr-armv8_gcc-14.3.0_musl.Linux-x86_64.tar.zst
             rust_target: aarch64-unknown-linux-musl
 
     steps:
@@ -64,7 +62,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential clang flex bison g++ gawk \
             gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
-            python3-distutils rsync unzip zlib1g-dev file wget zstd
+            python3-distutils rsync unzip zlib1g-dev file wget zstd curl
 
       - name: 🦀 Install Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -73,10 +71,11 @@ jobs:
 
       - name: 📦 Download and Prepare OpenWrt SDK
         run: |
-          curl -fsSL -o sdk.tar.zst ${{ matrix.sdk_url }}
+          echo "⬇️ 正在下载 SDK: ${{ matrix.sdk_url }}"
+          curl -fsSL -o sdk.tar.zst "${{ matrix.sdk_url }}"
 
           echo "✅ SDK 下载完成，开始解压..."
-          mkdir openwrt-sdk
+          mkdir -p openwrt-sdk
           tar -xf sdk.tar.zst -C openwrt-sdk --strip-components=1
 
           echo "✅ SDK 解压完成，开始同步代码..."
@@ -93,7 +92,10 @@ jobs:
 
       - name: 🔧 Patch Makefile for Cross-Compilation
         run: |
-          sed -i "s/x86_64-unknown-linux-musl/${{ matrix.rust_target }}/g" openwrt-sdk/package/luci-app-geph5/Makefile
+          TARGET_MAKEFILE="openwrt-sdk/package/luci-app-geph5/Makefile"
+          if grep -q "x86_64-unknown-linux-musl" "$TARGET_MAKEFILE"; then
+            sed -i "s/x86_64-unknown-linux-musl/${{ matrix.rust_target }}/g" "$TARGET_MAKEFILE"
+          fi
 
       - name: 🚀 Compile luci-app-geph5 Package
         working-directory: openwrt-sdk
@@ -101,14 +103,14 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           make defconfig
-          make package/luci-app-geph5/compile V=s
+          # 先以多核编译，若失败自动降为单核输出详尽 debug 日志
+          make package/luci-app-geph5/compile V=s -j$(nproc) || make package/luci-app-geph5/compile V=s -j1
 
       - name: 📤 Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          # 【改造点 2：动态命名 Artifact，防止不同系统版本的产物互相覆盖】
           name: luci-app-geph5-${{ matrix.os_ver }}-${{ matrix.arch }}-${{ matrix.pkg_ext }}
-          path: openwrt-sdk/bin/packages/**/luci-app-geph5*.${{ matrix.pkg_ext }}
+          path: openwrt-sdk/bin/**/*.${{ matrix.pkg_ext }}
           if-no-files-found: error
 
       - name: 🚀 Create GitHub Release
@@ -117,9 +119,8 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: "Release ${{ github.ref_name }}"
-          # 【改造点 3：Release 环节同时抓取 .ipk 和 .apk 文件】
           files: |
-            openwrt-sdk/bin/packages/**/luci-app-geph5*.ipk
-            openwrt-sdk/bin/packages/**/luci-app-geph5*.apk
+            openwrt-sdk/bin/**/*.ipk
+            openwrt-sdk/bin/**/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
