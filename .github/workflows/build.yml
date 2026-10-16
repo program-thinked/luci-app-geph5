@@ -120,7 +120,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: "Release ${{ github.ref_name }}"
           files: |
-            openwrt-sdk/bin/**/*.ipk
-            openwrt-sdk/bin/**/*.apk
+            openwrt-sdk/bin/**/*[gG][eE][pP][hH]5*.ipk
+            openwrt-sdk/bin/**/*[gG][eE][pP][hH]5*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
