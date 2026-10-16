@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 # 【改造点1：全面小写，符合 APK 标准】
 PKG_NAME:=luci-app-geph5
-PKG_VERSION:=0.2.102
+PKG_VERSION:=0.4.3
 PKG_RELEASE:=1
 
 PKG_LICENSE:=MIT
