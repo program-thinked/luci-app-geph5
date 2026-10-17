@@ -60,9 +60,10 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang flex bison g++ gawk \
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang flex bison g++ gawk \
             gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
-            python3-distutils rsync unzip zlib1g-dev file wget zstd curl
+            rsync unzip zlib1g-dev file wget zstd curl
 
       - name: 🦀 Install Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -106,11 +107,29 @@ jobs:
           # 先并行加速编译，失败时回退至单线程排查具体错误
           make package/luci-app-geph5/compile V=s -j$(nproc) || make package/luci-app-geph5/compile V=s -j1
 
+      - name: 🏷️ Collect and Rename Output Packages
+        run: |
+          mkdir -p release_pkgs
+          # 兼容大小写匹配所有 geph5 包，并移动到独立目录
+          find openwrt-sdk/bin/ -type f \( -iname "*geph5*.ipk" -o -iname "*geph5*.apk" \) | while read -r file; do
+            filename=$(basename "$file")
+            # 如果文件名中尚未包含该架构名称，则重命名以防并行 Release 时互相覆盖
+            if [[ "$filename" != *"${{ matrix.arch }}"* ]]; then
+              ext="${filename##*.}"
+              base="${filename%.*}"
+              new_name="${base}_${{ matrix.arch }}.${ext}"
+            else
+              new_name="$filename"
+            fi
+            echo "📦 整理产物: $filename -> release_pkgs/$new_name"
+            cp "$file" "release_pkgs/$new_name"
+          done
+
       - name: 📤 Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: luci-app-geph5-${{ matrix.os_ver }}-${{ matrix.arch }}-${{ matrix.pkg_ext }}
-          path: openwrt-sdk/bin/**/*.${{ matrix.pkg_ext }}
+          path: release_pkgs/*
           if-no-files-found: error
 
       - name: 🚀 Create GitHub Release
@@ -119,8 +138,6 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: "Release ${{ github.ref_name }}"
-          files: |
-            openwrt-sdk/bin/**/*[gG][eE][pP][hH]5*.ipk
-            openwrt-sdk/bin/**/*[gG][eE][pP][hH]5*.apk
+          files: release_pkgs/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
